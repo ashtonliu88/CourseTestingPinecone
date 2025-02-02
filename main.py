@@ -5,12 +5,15 @@ from pinecone import Pinecone, ServerlessSpec, PodSpec
 from dotenv import load_dotenv
 import os
 load_dotenv()
-# Initialize clients
+
+#clients
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 index_name = "course-catalog"
 index = pinecone_client.Index(index_name)
+
+#search courses input
 def search_courses():
     while True:
         query = input("Type in what you're looking for in a class (or type 'exit'): ")

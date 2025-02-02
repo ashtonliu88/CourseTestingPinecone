@@ -5,7 +5,8 @@ from pinecone import Pinecone, ServerlessSpec, PodSpec
 from dotenv import load_dotenv
 import os
 load_dotenv()
-# Initialize clients
+
+#clients
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -15,7 +16,7 @@ with open('courses.json', 'r') as f:
 use_serverless = True
 
 if use_serverless:
-    # Deploy a serverless Pinecone service
+    #deploy serverless
     spec = ServerlessSpec(cloud='aws', region='us-east-1')
 else:
     spec = PodSpec(environment=environment)
