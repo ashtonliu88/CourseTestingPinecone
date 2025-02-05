@@ -10,7 +10,7 @@ load_dotenv()
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-with open('courses.json', 'r') as f:
+with open('merged_courses.json', 'r') as f:
     courses = json.load(f)
 
 use_serverless = True
@@ -21,29 +21,33 @@ if use_serverless:
 else:
     spec = PodSpec(environment=environment)
 
-index_name = "course-catalog"
+index_name = "course-scheduler"
 if index_name not in pinecone_client.list_indexes():
     pinecone_client.create_index(
         name=index_name, 
-        metric="cosine", 
         dimension=1536,
         spec = spec)
 else:
     print("Index already exists, skipping creation")
     
 index = pinecone_client.Index(index_name)
-
 for course in courses:
-    text = f"{course['Course Code']}: {course['Course Title']}"
+    if not course["instructors"]:
+        continue
+    text = f"{course['code']}: {course['title']}"
     response = openai_client.embeddings.create(
         input=text,
         model="text-embedding-3-small"
     )
     vector = {
-        "id": course["Course Code"],
+        "id": course["code"],
         "values": response.data[0].embedding,
         "metadata": {
-            "title": course["Course Title"],
+            "title": course["title"],
+            "description": course["description"],
+            "credits": course["credits"],
+            "prerequisites": course["prerequisites"],
+            "quarters_offered": course["quarters_offered"],
             "full_text": text
         }
     }

@@ -10,33 +10,39 @@ load_dotenv()
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-index_name = "course-catalog"
+index_name = "course-scheduler"
 index = pinecone_client.Index(index_name)
 
-#search courses input
-def search_courses():
-    while True:
-        query = input("Type in what you're looking for in a class (or type 'exit'): ")
-        
-        if query.lower() == 'exit':
-            break
+def query_courses(transcript, next_quarter):
 
-        response = openai_client.embeddings.create(
-            input=query,
-            model="text-embedding-3-small"
-        )
-        query_embedding = response.data[0].embedding
+    response = openai_client.embeddings.create(
+        input="input classes for course generation",
+        model="text-embedding-ada-002"
+    )
+    query_embedding = response.data[0].embedding
 
-        results = index.query(
-            vector=query_embedding,
-            top_k=3,
-            include_metadata=True
-        )
+    results = index.query(
+        vector=query_embedding,
+        top_k=10,
+        include_metadata=True,
+    )
+    return results["matches"]
 
-        print("\nSuggested courses to take:")
-        for match in results['matches']:
-            print(f"{match['id']} - {match['metadata']['title']}")
-            print(f"Similarity score: {match['score']:.2f}\n")
+# Generate recommendations using OpenAI
+def generate_recommendations(courses):
+    course_list = "\n".join([f"{course}" for course in courses if 'metadata' in course])
+    prompt = f"Based on the following courses, recommend 3 for the next quarter:\n{course_list}"
+    
+    response = openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    recommendations = response.choices[0].message.content
+    return recommendations
 
-if __name__ == "__main__":
-    search_courses()
+# Example usage
+transcript = "CSE5J, CSE20, MATH19A"
+next_quarter = "Winter"
+courses = query_courses(transcript, next_quarter)
+recommendations = generate_recommendations(courses)
+print(recommendations)
