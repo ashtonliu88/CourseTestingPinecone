@@ -12,25 +12,40 @@ def load_courses(csv_path):
     df = pd.read_csv(csv_path)
     return df
 
+def limit_courses(courses, max_courses=50):
+    """Limits the number of courses sent to the LLM to avoid exceeding token limits."""
+    return courses.sample(n=min(len(courses), max_courses), random_state=42)
+
 def filter_courses(df, student_history, next_quarter):
     """Filters courses based on availability, prerequisites, and next quarter."""
-    df = df[df['Quarter Offered'] == next_quarter]
-    df = df[df['Available Seats'] > 0]
-    df = df[~df['Class name'].isin(student_history)]
+    # df = df[df['Quarter Offered'] == next_quarter]
+    # df = df[df['Available Seats'] > 0]
+    # df = df[~df['Class name'].isin(student_history)]
+    # print(df)
     return df
 
-def generate_schedule(courses, model="gpt-4"):
-    """Uses an LLM to generate a 3-class schedule."""
-    prompt = f"""
-    Given the following list of available courses, select a well-balanced set of 3 courses:
-    {courses[['Class name', 'Credits', 'General education', 'Meeting Information']].to_string(index=False)}
-    Consider variety, credit balance, and prerequisites.
-    """
+def generate_schedule(courses, model="gpt-4-turbo"):
+    """Uses an LLM to generate a 3-class schedule with summarized input."""
     
+    course_list = "\n".join(
+        f"{row['Class name']} ({row['Credits']} credits) - {row['General education']}" 
+        for _, row in courses.iterrows()
+    )
+    
+    prompt = f"""
+    Here is a list of available courses for next quarter:
+    
+    {course_list}
+    
+    Pick 3 courses that provide a balanced schedule based on variety, workload, and prerequisites.
+    """
+
     response = openai_client.chat.completions.create(
         model=model,
-        messages=[{"role": "system", "content": "You are an expert academic advisor."},
-                  {"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "You are an expert academic advisor."},
+            {"role": "user", "content": prompt},
+        ],
     )
     
     response_message = response.choices[0].message.content
@@ -41,12 +56,14 @@ def main():
     csv_path = os.path.join(os.path.dirname(__file__), "courses.csv")
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
+    
     student_history = ["Math 101", "CS 101"]  # Example, should come from user input
     next_quarter = "Spring 2025"
     
     df = load_courses(csv_path)
     filtered_courses = filter_courses(df, student_history, next_quarter)
-    schedule = generate_schedule(filtered_courses)
+    limited_courses = limit_courses(filtered_courses)
+    schedule = generate_schedule(limited_courses)
     
     print("Suggested Schedule:")
     print(schedule)
