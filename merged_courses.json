@@ -59,7 +59,8 @@
         "title": "Comp Sys and C Program",
         "description": "Focuses on C programming, command line, shell programming, editors, debuggers, source code control, and other tools. Examines basic computer systems, algorithm design, and development, data types, and program structures. Develops understanding of process model, compile-link-execute build cycle, language-machine interface, memory, and data representation. Students cannot receive credit for bothCSE 13Sand CSE 13E. Course is 7 credits with integrated laboratory.",
         "credits": "7",
-        "prerequisites": "Prerequisite(s):CSE 12orBME 160.",
+
+        "prerequisites": ["CSE12/BME160"],
         "quarters_offered": [
             "Fall",
             "Winter",
@@ -146,7 +147,10 @@
         "title": "Programming Abstractions: Python",
         "description": "Introduction to software development in Python focusing on structuring software in terms of objects endowed with primitive operations. Introduces concepts and techniques via a sequence of concrete case studies. Coursework consists of programming assignments and a final examination. Note thatCSE 30assumes some Python experience, students trained in a different language should self-study Python to prepare forCSE 30. SeeCSE Testout Examfor resources and further information.",
         "credits": "7",
-        "prerequisites": "Prerequisite(s):CSE 20orBME 160; andMATH 3orMATH 11AorMATH 19AorAM 3orAM 11Aor ECON 11A, or a score of 400 or higher on the mathematics placement examination (MPE).",
+        "prerequisites": [
+            "CSE20/BME160",
+            "MATH3/MATH11A/MATH19A/AM3/AM11A/ECON11A/MPE≥400"
+        ],
         "quarters_offered": [
             "Fall",
             "Winter",
