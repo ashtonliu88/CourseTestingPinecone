@@ -60,7 +60,7 @@ def extract_prerequisites(df):
     prerequisites['Course Code'] = prerequisites['Course Code'].str.split(' - ').str[0]
     return prerequisites
 
-def generate_schedule(courses, student_history, ge_history, required_courses, prerequisites, model="gpt-4o"):
+def generate_schedule(courses, student_history, ge_history, required_courses, upper_electives_taken, upper_electives_needed, prerequisites, model="gpt-4o"):
     """Uses an LLM to generate a 3-class schedule with summarized input."""
     
     course_list = "\n".join(
@@ -91,7 +91,12 @@ def generate_schedule(courses, student_history, ge_history, required_courses, pr
     {required_courses}
     prioritize courses that are prerequisites for future courses.
     
-    
+    This is the number of upper division electives the student has taken:
+    {upper_electives_taken}
+    Upper electives will be classes with course codes 100+.
+    This is the number of upper division electives the student needs to take:
+    {upper_electives_needed}
+
     Pick at least 3 classes that provide a balanced schedule based on variety, workload, and prerequisites and which completes their general education in a timely fashion.
     BE SURE TO INCLUDE THE REASON
 
@@ -130,7 +135,9 @@ def main():
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
     
     df = load_courses(csv_path)
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "CSE 12", "CSE 13S", "CSE 16", "COWL 66"]
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "CSE 12", "CSE 13S", "CSE 16", 
+                       "COWL 66", "MATH 21", "CSE 101", "HAVC 30", "CSE 120", "CSE 103", "CSE 102", "MATH 23A", 
+                       "CSE 130", "ECE 30", "ITAL 80", "CSE 107", "CSE 114A", "LIT 167M"]
     ge_history = get_student_history_ges(df, student_history)
     print(ge_history)
 
@@ -144,12 +151,15 @@ def main():
     required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
  
     upper_electives_taken = 0
+    upper_electives_needed = 4
 
     filtered_courses = filter_courses(df, student_history, required_courses, required_ges)
     prerequisites = extract_prerequisites(filtered_courses)
     limited_courses = limit_courses(filtered_courses)
     schedule = generate_schedule(limited_courses, student_history=student_history, 
-                                 ge_history=ge_history, required_courses=courses_left, prerequisites=prerequisites)
+                                 ge_history=ge_history, required_courses=courses_left, 
+                                 upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
+                                 prerequisites=prerequisites)
     
     print("Suggested Schedule:")
     print(schedule)
