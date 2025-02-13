@@ -13,7 +13,7 @@ def load_courses(csv_path):
     df = pd.read_csv(csv_path)
     return df
 
-def limit_courses(courses, max_courses=200):
+def limit_courses(courses, max_courses=300):
     """Limits the number of courses sent to the LLM to avoid exceeding token limits."""
     return courses.sample(n=min(len(courses), max_courses), random_state=42)
 
@@ -26,19 +26,31 @@ def filter_courses(df, student_history, required_courses, required_ges):
         df['General education'].isin(required_ges) |
         df['Course Code'].str.contains(r'CSE 1[0-6][0-9]')
     ]
-    def check_prerequisites(prereq_string, student_history):
-        """Checks if the student meets the prerequisites."""
-        if 'and' in prereq_string:
-            required_courses = prereq_string.split(' and ')
-            return all(course in student_history for course in required_courses)
-        elif 'or' in prereq_string:
-            required_courses = prereq_string.split(' or ')
-            return any(course in student_history for course in required_courses)
-        else:
-            return prereq_string in student_history
+    # def check_prerequisites(prereq_string, student_history):
+    #     """Checks if the student meets the prerequisites."""
+    #     if pd.isna(prereq_string) or prereq_string.strip() == '':
+    #         return True  # No prerequisites
 
-    df = df[~df['Enrollment Requirements'].apply(lambda x: check_prerequisites(x, student_history) if pd.notna(x) else False)]
-    print(df["Course Code"] + " " + df["Enrollment Requirements"])
+    #     prereq_string = prereq_string.lower()
+    #     student_history = set(course.lower() for course in student_history)
+
+    #     if 'antirequisite' in prereq_string:
+    #         return False
+
+    #     elif 'and' in prereq_string:
+    #         required_courses = [c.strip() for c in prereq_string.split(' and ')]
+    #         return all(course in student_history for course in required_courses)
+
+    #     elif 'or' in prereq_string:
+    #         required_courses = [c.strip() for c in prereq_string.split(' or ')]
+    #         return any(course in student_history for course in required_courses)
+
+    #     return prereq_string.strip() in student_history
+
+    # # Filter out courses where prerequisites are **not met**
+    # df = df[df['Enrollment Requirements'].apply(lambda x: check_prerequisites(x, student_history))]
+    # print(df[['Course Code', 'Enrollment Requirements']].to_string())
+    # print(df[['Course Code', 'Enrollment Requirements']].to_string())
     df = df[~df['Course Code'].str.split(' - ').str[0].isin(student_history)]
     return df
 
@@ -66,11 +78,13 @@ def generate_schedule(courses, student_history, ge_history, required_courses, pr
 
     The student has taken the following general education courses: 
     {ge_history}
-    
+    REMOVE GENERAL EDUCATION CLASSES FOR CONSIDERATION FROM THE COURSE LIST THAT THE STUDENT HAS ALREADY TAKEN.
     DO NOT RECOMMEND COURSES THAT THE STUDENT DOES NOT HAVE THE PREREQUISITES FOR IN THEIR HISTORY.
     The prerequisites for the courses are as follows:
     
     {prerequisites}
+
+    REMOVE CLASSES FOR CONSIDERATION FROM THE COURSE LIST THAT THE STUDENT DOES NOT HAVE THE PREREQUISITES FOR.
 
     These are courses that the student still needs to take:
 
@@ -81,8 +95,9 @@ def generate_schedule(courses, student_history, ge_history, required_courses, pr
     Pick at least 3 classes that provide a balanced schedule based on variety, workload, and prerequisites and which completes their general education in a timely fashion.
     BE SURE TO INCLUDE THE REASON
 
+    PICK AT LEAST ONE GENERAL EDUCATION COURSE THAT THE STUDENT HAS NOT TAKEN YET IF THE STUDENT HAS NOT TAKEN ALL GENERAL EDUCATION COURSES.
     Do not include classes that the student has general education credit for.
-    Pick at most one general education course.
+    
     Prioritize courses that are prerequisites for future courses.
     Ensure that the student meets all prerequisites for the selected courses.
     Do not include courses that the student has already taken.
@@ -115,8 +130,9 @@ def main():
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
     
     df = load_courses(csv_path)
-    student_history = ["CSE 20", "MATH 19A", "STAT 5"]
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "CSE 12", "CSE 13S", "CSE 16", "COWL 66"]
     ge_history = get_student_history_ges(df, student_history)
+    print(ge_history)
 
     required_courses = [
         "MATH 19A", "MATH 19B", "MATH 23A", "MATH 21", "CSE 20", "CSE 30", "CSE 13S", "CSE 16", "CSE 12", "CSE 101", "CSE 102", "CSE 103", "CSE 107",
@@ -127,11 +143,12 @@ def main():
     
     required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
  
+    upper_electives_taken = 0
 
     filtered_courses = filter_courses(df, student_history, required_courses, required_ges)
     prerequisites = extract_prerequisites(filtered_courses)
-    # limited_courses = limit_courses(filtered_courses)
-    schedule = generate_schedule(filtered_courses, student_history=student_history, 
+    limited_courses = limit_courses(filtered_courses)
+    schedule = generate_schedule(limited_courses, student_history=student_history, 
                                  ge_history=ge_history, required_courses=courses_left, prerequisites=prerequisites)
     
     print("Suggested Schedule:")
