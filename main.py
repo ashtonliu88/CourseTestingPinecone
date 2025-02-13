@@ -1,5 +1,5 @@
 import pandas as pd
-from openai import OpenAI # Change this if using a different LLM
+from openai import OpenAI
 
 from dotenv import load_dotenv
 import os
@@ -96,7 +96,7 @@ def main():
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
     
     df = load_courses(csv_path)
-    student_history = ["CSE 20", "MATH 19A"]
+    student_history = ["CSE 20", "MATH 19A", "CSE 12", "MATH 19B", "PHYS 6A"]
     ge_history = get_student_history_ges(df, student_history)
 
     required_courses = [
