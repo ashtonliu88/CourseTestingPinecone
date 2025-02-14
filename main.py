@@ -1,12 +1,25 @@
 import pandas as pd
 from openai import OpenAI
-
 from dotenv import load_dotenv
 import os
 import re
+from pymongo import MongoClient
 load_dotenv()
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def get_mongo_client():
+    """Creates and returns a MongoDB client."""
+    mongo_uri = os.getenv("MONGO_URI")
+    return MongoClient(mongo_uri)
+
+def load_courses_from_mongo(db_name, collection_name):
+    """Loads course data from a MongoDB collection."""
+    client = get_mongo_client()
+    db = client[db_name]
+    collection = db[collection_name]
+    courses = pd.DataFrame(list(collection.find()))
+    return courses
 
 def load_courses(csv_path):
     """Loads course data from a CSV file."""
@@ -130,21 +143,23 @@ def get_student_history_ges(df, student_history):
     return ges
 
 def main():
+    get_mongo_client()
     csv_path = os.path.join(os.path.dirname(__file__), "testspread.csv")
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
     
     df = load_courses(csv_path)
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "CSE 12", "CSE 13S", "CSE 16", 
-                       "COWL 66", "MATH 21", "CSE 101", "HAVC 30", "CSE 120", "CSE 103", "CSE 102", "MATH 23A", 
-                       "CSE 130", "ECE 30", "ITAL 80", "CSE 107", "CSE 114A", "LIT 167M"]
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B"]
     ge_history = get_student_history_ges(df, student_history)
-    print(ge_history)
 
-    required_courses = [
-        "MATH 19A", "MATH 19B", "MATH 23A", "MATH 21", "CSE 20", "CSE 30", "CSE 13S", "CSE 16", "CSE 12", "CSE 101", "CSE 102", "CSE 103", "CSE 107",
-        "CSE 120", "CSE 130", "ECE 30", "CSE 114A"
-    ]
+    courses = load_courses_from_mongo("university", "majors")
+    major = input("Enter your major: ")
+    year = input("Enter the year of admission: ")
+
+    major_data = courses[(courses['major'] == major) & (courses['admission_year'] == year)]
+    if major_data.empty:
+        raise ValueError(f"No data found for major: {major} and year: {year}")
+    required_courses = major_data['required_courses'].iloc[0]
 
     courses_left = [course for course in required_courses if course not in student_history]
     
@@ -163,6 +178,8 @@ def main():
     
     print("Suggested Schedule:")
     print(schedule)
+
+    
 
 if __name__ == "__main__":
     main()
