@@ -23,25 +23,27 @@ def extract_courses(requirements_str):
     
     return prerequisites
 
-requirements = "Prerequisite(s): CSE 20 or BME 160; and MATH 3 or MATH 11A or MATH 19A or AM 3 or AM 11A or ECON 11A, or a score of 400 or higher on the mathematics placement examination (MPE)".replace(",", "")
+requirements = "Prerequisite(s): MATH 19B. Enrollment is restricted to computer engineering, computer science: computer game design, computer science, network and digital technology, and technology and information management majors and proposed majors; and to computer engineering, computer science, and technology and information management minors."
 
-# prerequisites = parse_prerequisites(requirements)
-# print(prerequisites)
 
-# taken = ["CSE 20", "MATH 3"]
+def main():
+    taken = ["CSE 20", "MATH 3", "MATH 19B"]
 
-# def can_take_course(taken, prerequisites):
-#     for group in prerequisites:
-#         if not any(course in taken for course in group):
-#             return False, group
-#     return True, None 
+    def can_take_course(taken, prerequisites):
+        for group in prerequisites:
+            if not any(course in taken for course in group):
+                return False, group
+        return True, None 
 
-# eligible, missing_group = can_take_course(taken, prerequisites)
-
-# if eligible:
-#     print("You can take the class!")
-# else:
-#     print(f"You cannot take the class because you are missing one of: {missing_group}")
+    
+    prerequisites = extract_courses(requirements)
+    print(prerequisites)
+    eligible, missing_group = can_take_course(taken, prerequisites)
+    
+    if eligible:
+        print("You can take the class!")
+    else:
+        print(f"You cannot take the class because you are missing one of: {missing_group}")
 
 file_path = "testspread.csv"  # Change this to your actual file path
 df = pd.read_csv(file_path)
@@ -55,3 +57,6 @@ output_file_path = "classes_parsed.csv"
 df.to_csv(output_file_path, index=False)
 
 print(f"Processed CSV saved as {output_file_path}")
+
+if __name__ == "__main__":
+    main()

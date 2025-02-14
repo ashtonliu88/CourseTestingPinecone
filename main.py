@@ -2,7 +2,6 @@ import pandas as pd
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-import re
 from pymongo import MongoClient
 load_dotenv()
 
@@ -43,19 +42,18 @@ def filter_courses(df, student_history, required_courses, required_ges):
 
     def can_take_course(taken, prerequisites):
         for group in prerequisites:
-            if group and not any(course in taken for course in group):
+            if not any(course in taken for course in group):
                 return False, group
         return True, None 
     
-
+    
     for course in df['Course Code']:
-        eligible, missing_group = can_take_course(student_history, df['Parsed Prerequisites'])
+        eligible, missing_group = can_take_course(student_history, df['Parsed Prerequisites'].tostring())
         if eligible:
             print("You can take the class!")
         else:
-            print({course})
-            print(f"You cannot take the class because you are missing one of: {missing_group}")
-            df = df.drop(df[df['Course Code'] == course].index)
+            print(f"{course}You cannot take the class because you are missing one of: {missing_group}")
+            df = df.drop(df[df['Course Code'] == course].index)  
             
     # def check_prerequisites(prereq_string, student_history):
     #     """Checks if the student meets the prerequisites."""
@@ -161,41 +159,51 @@ def get_student_history_ges(df, student_history):
     return ges
 
 def main():
-    get_mongo_client()
-    csv_path = os.path.join(os.path.dirname(__file__), "classes_parsed.csv")
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
-    
-    df = load_courses(csv_path)
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "HAVC 135H"]
-    ge_history = get_student_history_ges(df, student_history)
-
-    courses = load_courses_from_mongo("university", "majors")
     major = input("Enter your major: ")
     year = input("Enter the year of admission: ")
-
-    major_data = courses[(courses['major'] == major) & (courses['admission_year'] == year)]
-    if major_data.empty:
-        raise ValueError(f"No data found for major: {major} and year: {year}")
-    required_courses = major_data['required_courses'].iloc[0]
-
-    courses_left = [course for course in required_courses if course not in student_history]
+    db_name = "nextQuarter"
+    collection_name = "classInfo"
+    client = get_mongo_client()
+    db = client[db_name]
+    collection = db[collection_name]
+    data = list(collection.find())
+    for document in data:
+        print(document)
     
-    required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
+    # get_mongo_client()
+    # csv_path = os.path.join(os.path.dirname(__file__), "classes_parsed.csv")
+    # courses = load_courses_from_mongo("university", "courses")
+    # if not os.path.exists(csv_path):
+    #     raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
+    
+    # df = load_courses(csv_path)
+    # student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H"]
+    # ge_history = get_student_history_ges(df, student_history)
+
+    # courses = load_courses_from_mongo("university", "majors")
+
+    # major_data = courses[(courses['major'] == major) & (courses['admission_year'] == year)]
+    # if major_data.empty:
+    #     raise ValueError(f"No data found for major: {major} and year: {year}")
+    # required_courses = major_data['required_courses'].iloc[0]
+
+    # courses_left = [course for course in required_courses if course not in student_history]
+    
+    # required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
  
-    upper_electives_taken = 0
-    upper_electives_needed = 4
+    # upper_electives_taken = 0
+    # upper_electives_needed = 4
 
-    filtered_courses = filter_courses(df, student_history, required_courses, required_ges)
-    prerequisites = extract_prerequisites(filtered_courses)
-    limited_courses = limit_courses(filtered_courses)
-    schedule = generate_schedule(limited_courses, student_history=student_history, 
-                                 ge_history=ge_history, required_courses=courses_left, 
-                                 upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
-                                 prerequisites=prerequisites)
+    # filtered_courses = filter_courses(df, student_history, required_courses, required_ges)
+    # prerequisites = extract_prerequisites(filtered_courses)
+    # limited_courses = limit_courses(filtered_courses)
+    # schedule = generate_schedule(limited_courses, student_history=student_history, 
+    #                              ge_history=ge_history, required_courses=courses_left, 
+    #                              upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
+    #                              prerequisites=prerequisites)
     
-    print("Suggested Schedule:")
-    print(schedule)
+    # print("Suggested Schedule:")
+    # print(schedule)
 
     
 

@@ -1,8 +1,10 @@
 from pymongo import MongoClient
-
+from dotenv import load_dotenv
+import os
 # Replace with your MongoDB connection string
-
+load_dotenv()
 # Connect to MongoDB
+MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client["university"]  # Database name
 collection = db["majors"]   # Collection name
