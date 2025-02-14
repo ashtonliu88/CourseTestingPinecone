@@ -39,6 +39,24 @@ def filter_courses(df, student_history, required_courses, required_ges):
         df['General education'].isin(required_ges) |
         df['Course Code'].str.contains(r'CSE 1[0-6][0-9]')
     ]
+
+
+    def can_take_course(taken, prerequisites):
+        for group in prerequisites:
+            if group and not any(course in taken for course in group):
+                return False, group
+        return True, None 
+    
+
+    for course in df['Course Code']:
+        eligible, missing_group = can_take_course(student_history, df['Parsed Prerequisites'])
+        if eligible:
+            print("You can take the class!")
+        else:
+            print({course})
+            print(f"You cannot take the class because you are missing one of: {missing_group}")
+            df = df.drop(df[df['Course Code'] == course].index)
+            
     # def check_prerequisites(prereq_string, student_history):
     #     """Checks if the student meets the prerequisites."""
     #     if pd.isna(prereq_string) or prereq_string.strip() == '':
@@ -69,11 +87,11 @@ def filter_courses(df, student_history, required_courses, required_ges):
 
 def extract_prerequisites(df):
     """Extracts course codes and their prerequisites into a separate DataFrame."""
-    prerequisites = df[['Course Code', 'Enrollment Requirements']].dropna()
+    prerequisites = df[['Course Code', 'Parsed Prerequisites']].dropna()
     prerequisites['Course Code'] = prerequisites['Course Code'].str.split(' - ').str[0]
     return prerequisites
 
-def generate_schedule(courses, student_history, ge_history, required_courses, upper_electives_taken, upper_electives_needed, prerequisites, model="gpt-4o"):
+def generate_schedule(courses, student_history, ge_history, required_courses, upper_electives_taken, upper_electives_needed, prerequisites, model="chatgpt-4o-latest"):
     """Uses an LLM to generate a 3-class schedule with summarized input."""
     
     course_list = "\n".join(
@@ -144,12 +162,12 @@ def get_student_history_ges(df, student_history):
 
 def main():
     get_mongo_client()
-    csv_path = os.path.join(os.path.dirname(__file__), "testspread.csv")
+    csv_path = os.path.join(os.path.dirname(__file__), "classes_parsed.csv")
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
     
     df = load_courses(csv_path)
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B"]
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "HAVC 135H"]
     ge_history = get_student_history_ges(df, student_history)
 
     courses = load_courses_from_mongo("university", "majors")
