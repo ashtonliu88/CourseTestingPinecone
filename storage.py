@@ -1,7 +1,6 @@
 from pymongo import MongoClient
 
 # Replace with your MongoDB connection string
-MONGO_URI = "mongodb+srv://ashtonliu88:wevegyatit@majordata.qgbly.mongodb.net/?retryWrites=true&w=majority&appName=MajorData"
 
 # Connect to MongoDB
 client = MongoClient(MONGO_URI)
