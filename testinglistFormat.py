@@ -23,11 +23,11 @@ def extract_courses(requirements_str):
     
     return prerequisites
 
-requirements = "Prerequisite(s): MATH 19B. Enrollment is restricted to computer engineering, computer science: computer game design, computer science, network and digital technology, and technology and information management majors and proposed majors; and to computer engineering, computer science, and technology and information management minors."
+requirements = "Prerequisite(s): CSE 12 or BME 160; CSE 13E or ECE 13 or CSE 13S; and CSE 16; and CSE 30; and MATH 11B or MATH 19B or MATH 20B or AM 11B or ECON 11B"
 
 
 def main():
-    taken = ["CSE 20", "MATH 3", "MATH 19B"]
+    taken = ["CSE 20", "MATH 3", "MATH 19B", "CSE 12"]
 
     def can_take_course(taken, prerequisites):
         for group in prerequisites:
