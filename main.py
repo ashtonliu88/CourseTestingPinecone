@@ -8,89 +8,36 @@ load_dotenv()
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def get_mongo_client():
-    """Creates and returns a MongoDB client."""
     mongo_uri = os.getenv("MONGO_URI")
     return MongoClient(mongo_uri)
 
 def load_courses_from_mongo(db_name, collection_name):
-    """Loads course data from a MongoDB collection."""
     client = get_mongo_client()
     db = client[db_name]
     collection = db[collection_name]
     courses = pd.DataFrame(list(collection.find()))
     return courses
 
-def load_courses(csv_path):
-    """Loads course data from a CSV file."""
-    df = pd.read_csv(csv_path)
-    return df
 
 def limit_courses(courses, max_courses=300):
-    """Limits the number of courses sent to the LLM to avoid exceeding token limits."""
     return courses.sample(n=min(len(courses), max_courses), random_state=42)
 
 def filter_courses(df, student_history, required_courses, required_ges):
-    """Filters courses based on availability, prerequisites, and next quarter."""
-    # df = df[df['Quarter Offered'] == next_quarter]
-    # df = df[df['Available Seats'] > 0]
+
     df = df[
         df['Course Code'].str.split(' - ').str[0].isin(required_courses) | 
         df['General education'].isin(required_ges) |
         df['Course Code'].str.contains(r'CSE 1[0-6][0-9]')
     ]
-
-
-    def can_take_course(taken, prerequisites):
-        for group in prerequisites:
-            if not any(course in taken for course in group):
-                return False, group
-        return True, None 
-    
-    
-    for course in df['Course Code']:
-        eligible, missing_group = can_take_course(student_history, df['Parsed Prerequisites'].tostring())
-        if eligible:
-            print("You can take the class!")
-        else:
-            print(f"{course}You cannot take the class because you are missing one of: {missing_group}")
-            df = df.drop(df[df['Course Code'] == course].index)  
-            
-    # def check_prerequisites(prereq_string, student_history):
-    #     """Checks if the student meets the prerequisites."""
-    #     if pd.isna(prereq_string) or prereq_string.strip() == '':
-    #         return True  # No prerequisites
-
-    #     prereq_string = prereq_string.lower()
-    #     student_history = set(course.lower() for course in student_history)
-
-    #     if 'antirequisite' in prereq_string:
-    #         return False
-
-    #     elif 'and' in prereq_string:
-    #         required_courses = [c.strip() for c in prereq_string.split(' and ')]
-    #         return all(course in student_history for course in required_courses)
-
-    #     elif 'or' in prereq_string:
-    #         required_courses = [c.strip() for c in prereq_string.split(' or ')]
-    #         return any(course in student_history for course in required_courses)
-
-    #     return prereq_string.strip() in student_history
-
-    # # Filter out courses where prerequisites are **not met**
-    # df = df[df['Enrollment Requirements'].apply(lambda x: check_prerequisites(x, student_history))]
-    # print(df[['Course Code', 'Enrollment Requirements']].to_string())
-    # print(df[['Course Code', 'Enrollment Requirements']].to_string())
     df = df[~df['Course Code'].str.split(' - ').str[0].isin(student_history)]
     return df
 
 def extract_prerequisites(df):
-    """Extracts course codes and their prerequisites into a separate DataFrame."""
     prerequisites = df[['Course Code', 'Parsed Prerequisites']].dropna()
     prerequisites['Course Code'] = prerequisites['Course Code'].str.split(' - ').str[0]
     return prerequisites
 
 def generate_schedule(courses, student_history, ge_history, required_courses, upper_electives_taken, upper_electives_needed, prerequisites, model="chatgpt-4o-latest"):
-    """Uses an LLM to generate a 3-class schedule with summarized input."""
     
     course_list = "\n".join(
         f"{row.to_dict()}" 
@@ -154,11 +101,18 @@ def generate_schedule(courses, student_history, ge_history, required_courses, up
 
 
 def get_student_history_ges(df, student_history):
-    """Searches for the general education requirements of the student's history classes."""
     ges = df[df['Course Code'].str.split(' - ').str[0].isin(student_history)]['General education'].dropna().unique().tolist()
     return ges
 
+def can_take_course(taken, prerequisites):
+    for group in prerequisites:
+        if not any(course in taken for course in group):
+            return False, group
+    return True, None 
+
 def main():
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H", "MATH 21", "CSE 16", "HIS 74A",
+                       "MATH 23A", "CSE 12", "HAVC 64"]
     major = input("Enter your major: ")
     year = input("Enter the year of admission: ")
     db_name = "nextQuarter"
@@ -167,24 +121,32 @@ def main():
     db = client[db_name]
     collection = db[collection_name]
     data = list(collection.find())
+
+    
+    eligible_courses = []
+    
     for document in data:
-        print(document)
-    
-    # get_mongo_client()
-    # csv_path = os.path.join(os.path.dirname(__file__), "classes_parsed.csv")
-    # courses = load_courses_from_mongo("university", "courses")
-    # if not os.path.exists(csv_path):
-    #     raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
-    
-    # df = load_courses(csv_path)
-    # student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H"]
-    # ge_history = get_student_history_ges(df, student_history)
+        if 'Parsed Prerequisites' in document:
+            prerequisites = document['Parsed Prerequisites']
+            if isinstance(prerequisites, str):
+                prerequisites = eval(prerequisites)
+
+            eligible = can_take_course(student_history, prerequisites)
+            if eligible:
+                eligible_courses.append(document)
+
+    eligible_courses_df = pd.DataFrame(eligible_courses)
+    for index, row in eligible_courses_df.head(410).iterrows():
+        print(row['Course Code'])
+
+    # ge_history = get_student_history_ges(eligible_courses_df, student_history)
 
     # courses = load_courses_from_mongo("university", "majors")
 
     # major_data = courses[(courses['major'] == major) & (courses['admission_year'] == year)]
     # if major_data.empty:
     #     raise ValueError(f"No data found for major: {major} and year: {year}")
+    
     # required_courses = major_data['required_courses'].iloc[0]
 
     # courses_left = [course for course in required_courses if course not in student_history]
@@ -194,7 +156,7 @@ def main():
     # upper_electives_taken = 0
     # upper_electives_needed = 4
 
-    # filtered_courses = filter_courses(df, student_history, required_courses, required_ges)
+    # filtered_courses = filter_courses(eligible_courses_df, student_history, required_courses, required_ges)
     # prerequisites = extract_prerequisites(filtered_courses)
     # limited_courses = limit_courses(filtered_courses)
     # schedule = generate_schedule(limited_courses, student_history=student_history, 
@@ -205,7 +167,6 @@ def main():
     # print("Suggested Schedule:")
     # print(schedule)
 
-    
 
 if __name__ == "__main__":
     main()
