@@ -122,7 +122,6 @@ def main():
     collection = db[collection_name]
     data = list(collection.find())
 
-    
 
     eligible_courses = []
     
@@ -158,8 +157,7 @@ def main():
 
     filtered_courses = filter_courses(eligible_courses_df, student_history, required_courses, required_ges)
     prerequisites = extract_prerequisites(filtered_courses)
-    limited_courses = limit_courses(filtered_courses)
-    schedule = generate_schedule(limited_courses, student_history=student_history, 
+    schedule = generate_schedule(filtered_courses, student_history=student_history, 
                                  ge_history=ge_history, required_courses=courses_left, 
                                  upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
                                  prerequisites=prerequisites)
