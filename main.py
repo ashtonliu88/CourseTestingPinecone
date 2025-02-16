@@ -115,8 +115,8 @@ def main():
                        "MATH 23A", "CSE 12", "HAVC 64"]
     major = input("Enter your major: ")
     year = input("Enter the year of admission: ")
-    db_name = "nextQuarter"
-    collection_name = "classInfo"
+    db_name = "classes"
+    collection_name = "courseInfo"
     client = get_mongo_client()
     db = client[db_name]
     collection = db[collection_name]
@@ -125,7 +125,7 @@ def main():
 
     eligible_courses = []
     
-    for document in data[:450]:
+    for document in data:
         if 'Parsed Prerequisites' in document:
             prerequisites = document['Parsed Prerequisites']
             if isinstance(prerequisites, str):
@@ -133,7 +133,8 @@ def main():
 
             eligible = can_take_course(student_history, prerequisites)
 
-            if eligible:
+            if eligible and document['Course Code'] not in student_history:
+                print(f"Eligible course: {document['Course Code']}")
                 eligible_courses.append(document)
 
     eligible_courses_df = pd.DataFrame(eligible_courses)

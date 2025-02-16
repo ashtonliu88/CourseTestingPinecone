@@ -6,8 +6,8 @@ load_dotenv()
 # MongoDB connection details
 mongo_uri = os.getenv("MONGO_URI")
 
-mongo_db_name = 'nextQuarter'
-mongo_collection_name = 'classInfo'
+mongo_db_name = 'classes'
+mongo_collection_name = 'courseInfo'
 
 # CSV file path
 csv_file_path = 'classes_parsed.csv'
