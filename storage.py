@@ -10,13 +10,14 @@ db = client["university"]  # Database name
 collection = db["majors"]   # Collection name
 
 
-def insert_major_data(major, year, required_courses, upper_electives_needed):
+def insert_major_data(major, year, required_courses, upper_electives_needed, upper_div_categories):
     """Inserts major data into MongoDB."""
     major_data = {
         "major": major,
         "admission_year": year,
         "required_courses": required_courses,
-        "upper_electives_needed": upper_electives_needed
+        "upper_electives_needed": upper_electives_needed,
+        "uppder_div_categories": upper_div_categories
     }
     
     collection.insert_one(major_data)
@@ -62,7 +63,8 @@ def main():
             ["CSE 101"], ["CSE 102"], ["CSE 103"], ["CSE 107"],
             ["CSE 120"], ["CSE 130"], ["ECE 30"], ["CSE 114A"], ["CSE 101M"]
         ],
-        upper_electives_needed=4
+        upper_electives_needed=4,
+        upper_div_categories=["CSE", "AM", "CMPM", "MATH"]
     )
 
 

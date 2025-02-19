@@ -22,12 +22,16 @@ def load_courses_from_mongo(db_name, collection_name):
 def limit_courses(courses, max_courses=300):
     return courses.sample(n=min(len(courses), max_courses), random_state=42)
 
-def filter_courses(df, student_history, required_courses, required_ges):
+def filter_courses(df, student_history, required_courses, ges_taken, upper_electives_group):
 
     df = df[
-        # df['Course Code'].str.split(' - ').str[0].isin(required_courses) | 
-        df['General education'].isin(required_ges) |
-        df['Course Code'].str.contains(r'CSE 1[0-6][0-9]')
+        ~df['General education'].isin(ges_taken) &
+        (
+            df['Course Code'].str.contains(r'CSE 1[0-6][0-9]') |
+            df['Course Code'].str.split(' - ').str[0].isin([course for group in upper_electives_group for course in group]) |
+            df['Course Code'].str.split(' - ').str[0].isin([course for group in required_courses for course in group]) |
+            df.apply(lambda row: can_take_course(student_history, eval(row['Parsed Prerequisites']))[0], axis=1)
+        )
     ]
 
     return df
@@ -128,8 +132,8 @@ def get_eligible_courses(data, student_history):
     return pd.DataFrame(eligible_courses)
 
 def main():
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H", "MATH 21", "CSE 16", "HIS 74A",
-                       "AM 30", "CSE 12", "HAVC 64", "CSE 13S", "CSE 101"]
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", "MATH 19B", "CSE 30", "HAVC 135H", "MATH 21", "CSE 16", "HIS 74A",
+                       "AM 30", "CSE 12", "HAVC 64", "CSE 13S", "CSE 101", "CSE 40"]
     major = input("Enter your major: ")
     year = input("Enter the year of admission: ")
     db_name = "classes"
@@ -138,6 +142,7 @@ def main():
     db = client[db_name]
     collection = db[collection_name]
     data = list(collection.find())
+
     
 
     eligible_courses_df = get_eligible_courses(data, student_history)
@@ -149,27 +154,30 @@ def main():
     major_data = courses[(courses['major'] == major) & (courses['admission_year'] == year)]
     if major_data.empty:
         raise ValueError(f"No data found for major: {major} and year: {year}")
-    
+        
     required_courses = major_data['required_courses'].iloc[0]
+    upper_electives_group = major_data['uppder_div_categories'].iloc[0]
 
     courses_left = [course_group for course_group in required_courses 
                 if not any(course in student_history for course in course_group)]
     
-    required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
+
+    required_ges = [ ["CC"], ["ER"], ["IM"], ["MF"], ["SI"], ["SR"], ["TA"], ["C"], ["DC"], ["PE-T, PE-H, PE-E"], ["PR-E", "PR-C", "PR-S"]]
  
     upper_electives_taken = 1
     upper_electives_needed = major_data['upper_electives_needed'].iloc[0] - upper_electives_taken
 
-    for document in data[:500]:
-        print(document['Course Code'], document['Parsed Prerequisites'])
-    # prerequisites = extract_prerequisites(filtered_courses)
-    # schedule = generate_schedule(filtered_courses, student_history=student_history, 
-    #                              ge_history=ge_history, required_courses=courses_left, 
-    #                              upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
-    #                              prerequisites=prerequisites)
+
+    filtered_courses = filter_courses(eligible_courses_df, student_history, required_courses, ges_taken = ge_history, upper_electives_group = upper_electives_group)
+    limited_courses = limit_courses(filtered_courses)
+    prerequisites = extract_prerequisites(limited_courses)
+    schedule = generate_schedule(limited_courses, student_history=student_history, 
+                                 ge_history=ge_history, required_courses=courses_left, 
+                                 upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
+                                 prerequisites=prerequisites)
     
-    # print("Suggested Schedule:")
-    # print(schedule)
+    print("Suggested Schedule:")
+    print(schedule)
 
 
 if __name__ == "__main__":
