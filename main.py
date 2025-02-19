@@ -25,11 +25,11 @@ def limit_courses(courses, max_courses=300):
 def filter_courses(df, student_history, required_courses, required_ges):
 
     df = df[
-        df['Course Code'].str.split(' - ').str[0].isin(required_courses) | 
+        # df['Course Code'].str.split(' - ').str[0].isin(required_courses) | 
         df['General education'].isin(required_ges) |
         df['Course Code'].str.contains(r'CSE 1[0-6][0-9]')
     ]
-    df = df[~df['Course Code'].str.split(' - ').str[0].isin(student_history)]
+
     return df
 
 def extract_prerequisites(df):
@@ -102,6 +102,7 @@ def generate_schedule(courses, student_history, ge_history, required_courses, up
 
 def get_student_history_ges(df, student_history):
     ges = df[df['Course Code'].str.split(' - ').str[0].isin(student_history)]['General education'].dropna().unique().tolist()
+    ges = [ge for ge in ges if ge]
     return ges
 
 def can_take_course(taken, prerequisites):
@@ -110,21 +111,9 @@ def can_take_course(taken, prerequisites):
             return False
         
     return True, None 
-def main():
-    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H", "MATH 21", "CSE 16", "HIS 74A",
-                       "MATH 23A", "CSE 12", "HAVC 64"]
-    major = input("Enter your major: ")
-    year = input("Enter the year of admission: ")
-    db_name = "classes"
-    collection_name = "courseInfo"
-    client = get_mongo_client()
-    db = client[db_name]
-    collection = db[collection_name]
-    data = list(collection.find())
 
-
+def get_eligible_courses(data, student_history):
     eligible_courses = []
-    
     for document in data:
         if 'Parsed Prerequisites' in document:
             prerequisites = document['Parsed Prerequisites']
@@ -134,10 +123,24 @@ def main():
             eligible = can_take_course(student_history, prerequisites)
 
             if eligible and document['Course Code'] not in student_history:
-                print(f"Eligible course: {document['Course Code']}")
                 eligible_courses.append(document)
 
-    eligible_courses_df = pd.DataFrame(eligible_courses)
+    return pd.DataFrame(eligible_courses)
+
+def main():
+    student_history = ["MATH 19A", "CSE 20", "PHYS 1B", 'MATH 19B', "CSE 30", "HAVC 135H", "MATH 21", "CSE 16", "HIS 74A",
+                       "AM 30", "CSE 12", "HAVC 64", "CSE 13S", "CSE 101"]
+    major = input("Enter your major: ")
+    year = input("Enter the year of admission: ")
+    db_name = "classes"
+    collection_name = "courseInfo"
+    client = get_mongo_client()
+    db = client[db_name]
+    collection = db[collection_name]
+    data = list(collection.find())
+    
+
+    eligible_courses_df = get_eligible_courses(data, student_history)
 
     ge_history = get_student_history_ges(eligible_courses_df, student_history)
 
@@ -149,22 +152,24 @@ def main():
     
     required_courses = major_data['required_courses'].iloc[0]
 
-    courses_left = [course for course in required_courses if course not in student_history]
+    courses_left = [course_group for course_group in required_courses 
+                if not any(course in student_history for course in course_group)]
     
     required_ges = ["CC", "ER", "IM", "MF", "SI", "SR", "TA", "C", "DC", "PE", "PR"]
  
-    upper_electives_taken = 0
-    upper_electives_needed = 4
+    upper_electives_taken = 1
+    upper_electives_needed = major_data['upper_electives_needed'].iloc[0] - upper_electives_taken
 
-    filtered_courses = filter_courses(eligible_courses_df, student_history, required_courses, required_ges)
-    prerequisites = extract_prerequisites(filtered_courses)
-    schedule = generate_schedule(filtered_courses, student_history=student_history, 
-                                 ge_history=ge_history, required_courses=courses_left, 
-                                 upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
-                                 prerequisites=prerequisites)
+    for document in data[:500]:
+        print(document['Course Code'], document['Parsed Prerequisites'])
+    # prerequisites = extract_prerequisites(filtered_courses)
+    # schedule = generate_schedule(filtered_courses, student_history=student_history, 
+    #                              ge_history=ge_history, required_courses=courses_left, 
+    #                              upper_electives_taken = upper_electives_taken, upper_electives_needed = upper_electives_needed,
+    #                              prerequisites=prerequisites)
     
-    print("Suggested Schedule:")
-    print(schedule)
+    # print("Suggested Schedule:")
+    # print(schedule)
 
 
 if __name__ == "__main__":
